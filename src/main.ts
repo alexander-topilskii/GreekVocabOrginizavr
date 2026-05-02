@@ -45,6 +45,21 @@ async function copyResults(): Promise<void> {
   updateState();
 }
 
+function formatGroupForQuizlet(groupId: string): string | null {
+  const group = state.groups.find((item) => item.id === groupId);
+  if (!group) {
+    return null;
+  }
+
+  return group.items
+    .map((item) => (
+      item.translation.length > 0
+        ? `${item.word}\t${item.translation}`
+        : item.word
+    ))
+    .join('\n');
+}
+
 function startProcessing(): void {
   const entries = parseInput(ui.textarea.value);
   if (entries.length === 0) {
@@ -134,6 +149,36 @@ bindUIEvents(ui, {
     }
     downloadTextFile('greek-groups.txt', toPlainText(state.groups));
   },
+});
+
+ui.resultGrid.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement | null;
+  const button = target?.closest<HTMLButtonElement>('[data-copy-group-id]');
+  if (!button) {
+    return;
+  }
+
+  const groupId = button.dataset.copyGroupId;
+  if (!groupId) {
+    return;
+  }
+
+  const quizletText = formatGroupForQuizlet(groupId);
+  if (!quizletText) {
+    return;
+  }
+
+  navigator.clipboard.writeText(quizletText)
+    .then(() => {
+      state.progressStatus = 'Group copied in Quizlet format.';
+      setError(null);
+      updateState();
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Group copy failed.';
+      setError(message);
+      updateState();
+    });
 });
 
 updateState();

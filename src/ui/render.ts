@@ -29,7 +29,7 @@ function renderGroupCards(groups: WordGroup[]): string {
   }
 
   return groups
-    .map((group) => {
+    .map((group, index) => {
       const items = group.items
         .map((item) => (
           item.translation.length > 0
@@ -39,15 +39,33 @@ function renderGroupCards(groups: WordGroup[]): string {
         .join('');
 
       return `
-        <article class="group-card">
+        <article class="group-card card-enter" style="animation-delay: ${Math.min(index * 45, 250)}ms">
           <h3 class="group-title">
             <span>${group.label}</span>
-            <span class="group-count">${group.items.length}</span>
+            <div class="group-title-actions">
+              <span class="group-count">${group.items.length}</span>
+              <button class="card-copy-btn" type="button" data-copy-group-id="${group.id}">
+                Copy
+              </button>
+            </div>
           </h3>
           <ul class="group-list">${items}</ul>
         </article>
       `;
     })
+    .join('');
+}
+
+function renderLoadingSkeleton(): string {
+  return Array.from({ length: 6 })
+    .map((_, index) => `
+      <article class="group-card card-skeleton card-enter" style="animation-delay: ${Math.min(index * 40, 220)}ms">
+        <div class="skeleton-line skeleton-title"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line skeleton-short"></div>
+      </article>
+    `)
     .join('');
 }
 
@@ -182,8 +200,10 @@ export function renderState(ui: UIRefs, state: AppState): void {
   ui.groupSizeInput.value = String(state.groupSize);
   ui.groupSizeValue.textContent = String(state.groupSize);
   ui.progressBar.style.width = `${Math.max(0, Math.min(100, state.progress))}%`;
+  ui.progressBar.classList.toggle('progress-bar-active', state.isRunning);
   ui.progressText.textContent = state.progressStatus;
   ui.runButton.disabled = state.isRunning;
+  ui.runButton.textContent = state.isRunning ? 'Organizing...' : 'Organize words';
 
   const hasResults = state.groups.length > 0;
   ui.copyButton.disabled = !hasResults || state.isRunning;
@@ -199,5 +219,7 @@ export function renderState(ui: UIRefs, state: AppState): void {
     ui.errorBox.classList.add('is-hidden');
   }
 
-  ui.resultGrid.innerHTML = renderGroupCards(state.groups);
+  ui.resultGrid.innerHTML = state.isRunning
+    ? renderLoadingSkeleton()
+    : renderGroupCards(state.groups);
 }

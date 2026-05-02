@@ -207,6 +207,11 @@ body {
   background: linear-gradient(90deg, #10b981, #14b8a6);
 }
 
+.progress-bar-active {
+  background-size: 180% 100%;
+  animation: progressFlow 1.2s linear infinite;
+}
+
 .progress-text {
   margin: 8px 0 0;
   color: #64748b;
@@ -278,6 +283,12 @@ body {
   color: #0f172a;
 }
 
+.group-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .group-count {
   border-radius: 999px;
   border: 1px solid #c7d2fe;
@@ -288,6 +299,24 @@ body {
   padding: 3px 9px;
 }
 
+.card-copy-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.card-copy-btn:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
 .group-list {
   margin: 0;
   padding-left: 18px;
@@ -295,6 +324,36 @@ body {
   font-size: 14px;
   display: grid;
   gap: 4px;
+}
+
+.card-enter {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: cardIn 280ms ease forwards;
+}
+
+.card-skeleton {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.skeleton-title {
+  height: 16px;
+  width: 58%;
+  margin-bottom: 12px;
+}
+
+.skeleton-short {
+  width: 72%;
 }
 
 .group-word {
@@ -334,6 +393,35 @@ body {
 
 .is-hidden {
   display: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes progressFlow {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
 }
 
 @media (max-width: 1100px) {
