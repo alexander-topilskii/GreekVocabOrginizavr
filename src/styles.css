@@ -285,12 +285,40 @@ body {
   box-shadow: 0 20px 30px -26px rgba(37, 99, 235, 0.8);
 }
 
+.group-card-dragging {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.group-card-drop-active {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
 .group-title {
   margin: 0 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.group-drag-handle {
+  border: 1px solid #dbeafe;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: grab;
+  user-select: none;
+}
+
+.group-drag-handle:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
 }
 
 .group-name-input {

@@ -80,8 +80,17 @@ function renderGroupCards(groups: WordGroup[]): string {
       });
 
       return `
-        <article class="group-card card-enter" style="animation-delay: ${Math.min(index * 45, 250)}ms">
+        <article class="group-card card-enter" data-group-card-id="${group.id}" style="animation-delay: ${Math.min(index * 45, 250)}ms">
           <h3 class="group-title">
+            <button
+              class="group-drag-handle"
+              type="button"
+              draggable="true"
+              data-drag-group-card-id="${group.id}"
+              aria-label="Перетащить список"
+            >
+              ⠿
+            </button>
             <input
               class="group-name-input"
               type="text"

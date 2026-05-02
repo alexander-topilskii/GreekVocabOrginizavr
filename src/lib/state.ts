@@ -93,6 +93,31 @@ export function moveItem(
   return nextGroups;
 }
 
+export function moveGroup(
+  groups: WordGroup[],
+  sourceGroupId: string,
+  targetGroupId: string,
+): WordGroup[] {
+  if (sourceGroupId === targetGroupId) {
+    return groups;
+  }
+
+  const sourceIndex = groups.findIndex((group) => group.id === sourceGroupId);
+  const targetIndex = groups.findIndex((group) => group.id === targetGroupId);
+  if (sourceIndex < 0 || targetIndex < 0) {
+    return groups;
+  }
+
+  const nextGroups = cloneGroups(groups);
+  const [movingGroup] = nextGroups.splice(sourceIndex, 1);
+  if (!movingGroup) {
+    return groups;
+  }
+
+  nextGroups.splice(targetIndex, 0, movingGroup);
+  return nextGroups;
+}
+
 export function createEmptyGroup(groups: WordGroup[]): WordGroup[] {
   const usedIds = new Set(groups.map((group) => group.id));
   let idCounter = 1;

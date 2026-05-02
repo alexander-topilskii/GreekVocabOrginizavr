@@ -5,6 +5,7 @@ import { parseInput } from './lib/parser';
 import {
   createEmptyGroup,
   createState,
+  moveGroup,
   moveItem,
   removeGroup,
   removeItemFromGroup,
@@ -23,7 +24,11 @@ if (!app) {
 const state = createState();
 const ui = renderLayout(app);
 const worker = new Worker(new URL('./worker/worker.ts', import.meta.url), { type: 'module' });
-let activeDragPayload: { sourceGroupId: string; itemId: number } | null = null;
+type ActiveDragPayload =
+  | { kind: 'item'; sourceGroupId: string; itemId: number }
+  | { kind: 'group'; groupId: string };
+
+let activeDragPayload: ActiveDragPayload | null = null;
 
 function updateState(): void {
   renderState(ui, state);
@@ -74,6 +79,12 @@ function clearDropSlotHighlight(): void {
   });
 }
 
+function clearGroupDropHighlight(): void {
+  ui.resultGrid.querySelectorAll('.group-card-drop-active').forEach((element) => {
+    element.classList.remove('group-card-drop-active');
+  });
+}
+
 function parseDropTarget(target: HTMLElement | null): { groupId: string; index: number } | null {
   const dropSlot = target?.closest<HTMLElement>('[data-drop-group-id][data-drop-index]');
   if (!dropSlot) {
@@ -88,6 +99,16 @@ function parseDropTarget(target: HTMLElement | null): { groupId: string; index: 
   }
 
   return { groupId, index };
+}
+
+function parseGroupDropTarget(target: HTMLElement | null): { groupId: string } | null {
+  const groupCard = target?.closest<HTMLElement>('[data-group-card-id]');
+  const groupId = groupCard?.dataset.groupCardId;
+  if (!groupId) {
+    return null;
+  }
+
+  return { groupId };
 }
 
 function startProcessing(): void {
@@ -271,6 +292,22 @@ ui.resultGrid.addEventListener('dragstart', (event) => {
   }
 
   const target = event.target as HTMLElement | null;
+  const groupHandle = target?.closest<HTMLElement>('[data-drag-group-card-id]');
+  if (groupHandle) {
+    const groupId = groupHandle.dataset.dragGroupCardId;
+    if (!groupId) {
+      return;
+    }
+
+    activeDragPayload = { kind: 'group', groupId };
+    groupHandle.closest<HTMLElement>('[data-group-card-id]')?.classList.add('group-card-dragging');
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', groupId);
+    }
+    return;
+  }
+
   const dragItem = target?.closest<HTMLElement>('[data-drag-group-id][data-drag-item-id]');
   if (!dragItem) {
     return;
@@ -283,7 +320,7 @@ ui.resultGrid.addEventListener('dragstart', (event) => {
     return;
   }
 
-  activeDragPayload = { sourceGroupId, itemId };
+  activeDragPayload = { kind: 'item', sourceGroupId, itemId };
   dragItem.classList.add('group-item-dragging');
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
@@ -297,8 +334,23 @@ ui.resultGrid.addEventListener('dragover', (event) => {
   }
 
   const target = event.target as HTMLElement | null;
-  const dropTarget = parseDropTarget(target);
-  if (!dropTarget) {
+  if (activeDragPayload.kind === 'group') {
+    const dropTarget = parseGroupDropTarget(target);
+    if (!dropTarget || dropTarget.groupId === activeDragPayload.groupId) {
+      return;
+    }
+
+    event.preventDefault();
+    clearGroupDropHighlight();
+    target?.closest<HTMLElement>('[data-group-card-id]')?.classList.add('group-card-drop-active');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    return;
+  }
+
+  const itemDropTarget = parseDropTarget(target);
+  if (!itemDropTarget) {
     return;
   }
 
@@ -318,8 +370,26 @@ ui.resultGrid.addEventListener('drop', (event) => {
 
   event.preventDefault();
   const target = event.target as HTMLElement | null;
-  const dropTarget = parseDropTarget(target);
   clearDropSlotHighlight();
+  clearGroupDropHighlight();
+
+  if (activeDragPayload.kind === 'group') {
+    const groupDropTarget = parseGroupDropTarget(target);
+    if (!groupDropTarget) {
+      return;
+    }
+
+    state.groups = moveGroup(
+      state.groups,
+      activeDragPayload.groupId,
+      groupDropTarget.groupId,
+    );
+    setError(null);
+    updateState();
+    return;
+  }
+
+  const dropTarget = parseDropTarget(target);
   if (!dropTarget) {
     return;
   }
@@ -338,8 +408,12 @@ ui.resultGrid.addEventListener('drop', (event) => {
 ui.resultGrid.addEventListener('dragend', () => {
   activeDragPayload = null;
   clearDropSlotHighlight();
+  clearGroupDropHighlight();
   ui.resultGrid.querySelectorAll('.group-item-dragging').forEach((element) => {
     element.classList.remove('group-item-dragging');
+  });
+  ui.resultGrid.querySelectorAll('.group-card-dragging').forEach((element) => {
+    element.classList.remove('group-card-dragging');
   });
 });
 
