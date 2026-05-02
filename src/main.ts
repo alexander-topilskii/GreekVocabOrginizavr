@@ -2,7 +2,7 @@ import './styles.css';
 
 import { downloadTextFile, toCsv, toMarkdown, toPlainText } from './lib/export';
 import { parseInput } from './lib/parser';
-import { createState } from './lib/state';
+import { createEmptyGroup, createState, moveItem, removeItemFromGroup, renameGroup } from './lib/state';
 import type { WorkerOutgoingMessage } from './lib/types';
 import { bindUIEvents } from './ui/events';
 import { renderLayout, renderState } from './ui/render';
@@ -16,6 +16,7 @@ if (!app) {
 const state = createState();
 const ui = renderLayout(app);
 const worker = new Worker(new URL('./worker/worker.ts', import.meta.url), { type: 'module' });
+let activeDragPayload: { sourceGroupId: string; itemId: number } | null = null;
 
 function updateState(): void {
   renderState(ui, state);
@@ -58,6 +59,28 @@ function formatGroupForQuizlet(groupId: string): string | null {
         : item.word
     ))
     .join('\n');
+}
+
+function clearDropSlotHighlight(): void {
+  ui.resultGrid.querySelectorAll('.drop-slot-active').forEach((element) => {
+    element.classList.remove('drop-slot-active');
+  });
+}
+
+function parseDropTarget(target: HTMLElement | null): { groupId: string; index: number } | null {
+  const dropSlot = target?.closest<HTMLElement>('[data-drop-group-id][data-drop-index]');
+  if (!dropSlot) {
+    return null;
+  }
+
+  const groupId = dropSlot.dataset.dropGroupId;
+  const indexRaw = dropSlot.dataset.dropIndex;
+  const index = Number(indexRaw);
+  if (!groupId || !Number.isInteger(index) || index < 0) {
+    return null;
+  }
+
+  return { groupId, index };
 }
 
 function startProcessing(): void {
@@ -151,8 +174,27 @@ bindUIEvents(ui, {
   },
 });
 
+ui.createEmptyGroupButton.addEventListener('click', () => {
+  state.groups = createEmptyGroup(state.groups);
+  setError(null);
+  updateState();
+});
+
 ui.resultGrid.addEventListener('click', (event) => {
   const target = event.target as HTMLElement | null;
+  const removeButton = target?.closest<HTMLButtonElement>('[data-remove-group-id][data-remove-item-id]');
+  if (removeButton) {
+    const groupId = removeButton.dataset.removeGroupId;
+    const itemIdRaw = removeButton.dataset.removeItemId;
+    const itemId = Number(itemIdRaw);
+    if (groupId && Number.isInteger(itemId)) {
+      state.groups = removeItemFromGroup(state.groups, groupId, itemId);
+      setError(null);
+      updateState();
+    }
+    return;
+  }
+
   const button = target?.closest<HTMLButtonElement>('[data-copy-group-id]');
   if (!button) {
     return;
@@ -179,6 +221,108 @@ ui.resultGrid.addEventListener('click', (event) => {
       setError(message);
       updateState();
     });
+});
+
+ui.resultGrid.addEventListener('change', (event) => {
+  const target = event.target as HTMLElement | null;
+  const input = target?.closest<HTMLInputElement>('[data-rename-group-id]');
+  if (!input) {
+    return;
+  }
+
+  const groupId = input.dataset.renameGroupId;
+  if (!groupId) {
+    return;
+  }
+
+  const previousLabel = state.groups.find((group) => group.id === groupId)?.label ?? '';
+  const trimmedLabel = input.value.trim();
+  if (trimmedLabel.length === 0) {
+    input.value = previousLabel;
+    return;
+  }
+
+  state.groups = renameGroup(state.groups, groupId, trimmedLabel);
+  setError(null);
+  updateState();
+});
+
+ui.resultGrid.addEventListener('dragstart', (event) => {
+  if (state.isRunning) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+  const dragItem = target?.closest<HTMLElement>('[data-drag-group-id][data-drag-item-id]');
+  if (!dragItem) {
+    return;
+  }
+
+  const sourceGroupId = dragItem.dataset.dragGroupId;
+  const itemIdRaw = dragItem.dataset.dragItemId;
+  const itemId = Number(itemIdRaw);
+  if (!sourceGroupId || !Number.isInteger(itemId)) {
+    return;
+  }
+
+  activeDragPayload = { sourceGroupId, itemId };
+  dragItem.classList.add('group-item-dragging');
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `${sourceGroupId}:${itemId}`);
+  }
+});
+
+ui.resultGrid.addEventListener('dragover', (event) => {
+  if (!activeDragPayload) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+  const dropTarget = parseDropTarget(target);
+  if (!dropTarget) {
+    return;
+  }
+
+  event.preventDefault();
+  clearDropSlotHighlight();
+  const slot = target?.closest<HTMLElement>('[data-drop-group-id][data-drop-index]');
+  slot?.classList.add('drop-slot-active');
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+});
+
+ui.resultGrid.addEventListener('drop', (event) => {
+  if (!activeDragPayload) {
+    return;
+  }
+
+  event.preventDefault();
+  const target = event.target as HTMLElement | null;
+  const dropTarget = parseDropTarget(target);
+  clearDropSlotHighlight();
+  if (!dropTarget) {
+    return;
+  }
+
+  state.groups = moveItem(
+    state.groups,
+    activeDragPayload.sourceGroupId,
+    activeDragPayload.itemId,
+    dropTarget.groupId,
+    dropTarget.index,
+  );
+  setError(null);
+  updateState();
+});
+
+ui.resultGrid.addEventListener('dragend', () => {
+  activeDragPayload = null;
+  clearDropSlotHighlight();
+  ui.resultGrid.querySelectorAll('.group-item-dragging').forEach((element) => {
+    element.classList.remove('group-item-dragging');
+  });
 });
 
 updateState();

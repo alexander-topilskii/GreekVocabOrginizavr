@@ -253,6 +253,17 @@ body {
   color: #0f172a;
 }
 
+.results-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-create-empty {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
 .results-grid {
   margin-top: 14px;
   display: grid;
@@ -279,8 +290,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 17px;
+  gap: 10px;
+}
+
+.group-name-input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid transparent;
+  background: transparent;
   color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 2px 6px;
+  outline: none;
+}
+
+.group-name-input:focus {
+  border-color: #c7d2fe;
+  background: #eef2ff;
 }
 
 .group-title-actions {
@@ -319,11 +347,93 @@ body {
 
 .group-list {
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   color: #334155;
   font-size: 14px;
   display: grid;
-  gap: 4px;
+  gap: 0;
+}
+
+.drop-slot {
+  height: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.drop-slot-line {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.drop-slot-active .drop-slot-line {
+  background: #6366f1;
+}
+
+.group-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.group-item:hover {
+  border-color: #cbd5e1;
+}
+
+.group-item-dragging {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.drag-handle {
+  color: #94a3b8;
+  cursor: grab;
+  user-select: none;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.group-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-delete-btn {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.item-delete-btn:hover {
+  border-color: #fda4af;
+  background: #ffe4e6;
+}
+
+.empty-group-note {
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+  font-size: 12px;
+  padding: 10px 8px;
 }
 
 .card-enter {
@@ -450,5 +560,11 @@ body {
   .actions-grid,
   .results-grid {
     grid-template-columns: 1fr;
+  }
+
+  .results-top {
+    align-items: flex-start;
+    gap: 8px;
+    flex-direction: column;
   }
 }

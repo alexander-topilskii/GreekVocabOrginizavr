@@ -12,6 +12,36 @@ interface GroupDraft {
   sortIndex: number;
 }
 
+function buildMeaningfulLabel(items: WordEntry[], fallback: string): string {
+  const uniqueWords: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const word = item.word.trim();
+    if (word.length === 0) {
+      continue;
+    }
+
+    const normalized = word.toLocaleLowerCase();
+    if (seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    uniqueWords.push(word);
+  }
+
+  if (uniqueWords.length === 0) {
+    return fallback;
+  }
+
+  if (uniqueWords.length === 1) {
+    return uniqueWords[0];
+  }
+
+  return uniqueWords.slice(0, 3).join(', ');
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -39,7 +69,7 @@ function createWordGroupsFromLabels(entries: WordEntry[], labels: number[]): Gro
 
   sortedLabelPairs.forEach((pair, index) => {
     drafts.push({
-      label: `Group ${index + 1}`,
+      label: buildMeaningfulLabel(pair.items, `Group ${index + 1}`),
       items: pair.items,
       sortIndex: pair.items[0]?.id ?? Number.MAX_SAFE_INTEGER,
     });
@@ -62,7 +92,7 @@ function postProcessGroups(initialGroups: GroupDraft[]): WordGroup[] {
       const chunks = chunk(group.items, MAX_GROUP_SIZE);
       chunks.forEach((items, chunkIndex) => {
         result.push({
-          label: `${group.label}.${chunkIndex + 1}`,
+          label: buildMeaningfulLabel(items, `${group.label}.${chunkIndex + 1}`),
           items,
           sortIndex: items[0]?.id ?? Number.MAX_SAFE_INTEGER,
         });
@@ -112,7 +142,7 @@ export function clusterEntries(
   if (entries.length <= MAX_GROUP_SIZE) {
     return [{
       id: 'g-1',
-      label: entries.length < MIN_GROUP_SIZE ? 'other' : 'Group 1',
+      label: entries.length < MIN_GROUP_SIZE ? 'other' : buildMeaningfulLabel(entries, 'Group 1'),
       items: [...entries].sort((left, right) => left.id - right.id),
     }];
   }

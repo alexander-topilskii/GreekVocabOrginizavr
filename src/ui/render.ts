@@ -10,10 +10,31 @@ export interface UIRefs {
   progressText: HTMLElement;
   errorBox: HTMLElement;
   resultGrid: HTMLElement;
+  createEmptyGroupButton: HTMLButtonElement;
   copyButton: HTMLButtonElement;
   downloadMdButton: HTMLButtonElement;
   downloadCsvButton: HTMLButtonElement;
   downloadTxtButton: HTMLButtonElement;
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderDropSlot(groupId: string, index: number): string {
+  return `
+    <li
+      class="drop-slot"
+      data-drop-group-id="${groupId}"
+      data-drop-index="${index}"
+    >
+      <span class="drop-slot-line"></span>
+    </li>
+  `;
 }
 
 function renderGroupCards(groups: WordGroup[]): string {
@@ -30,18 +51,44 @@ function renderGroupCards(groups: WordGroup[]): string {
 
   return groups
     .map((group, index) => {
-      const items = group.items
-        .map((item) => (
-          item.translation.length > 0
-            ? `<li class="group-item"><span class="group-word">${item.word}</span> <span class="group-translation">- ${item.translation}</span></li>`
-            : `<li class="group-item"><span class="group-word">${item.word}</span></li>`
-        ))
-        .join('');
+      const rows: string[] = [renderDropSlot(group.id, 0)];
+      group.items.forEach((item, itemIndex) => {
+        const textMarkup = item.translation.length > 0
+          ? `<span class="group-word">${item.word}</span> <span class="group-translation">- ${item.translation}</span>`
+          : `<span class="group-word">${item.word}</span>`;
+
+        rows.push(`
+          <li
+            class="group-item"
+            draggable="true"
+            data-drag-group-id="${group.id}"
+            data-drag-item-id="${item.id}"
+          >
+            <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+            <span class="group-item-text">${textMarkup}</span>
+            <button
+              class="item-delete-btn"
+              type="button"
+              data-remove-group-id="${group.id}"
+              data-remove-item-id="${item.id}"
+            >
+              Удалить
+            </button>
+          </li>
+        `);
+        rows.push(renderDropSlot(group.id, itemIndex + 1));
+      });
 
       return `
         <article class="group-card card-enter" style="animation-delay: ${Math.min(index * 45, 250)}ms">
           <h3 class="group-title">
-            <span>${group.label}</span>
+            <input
+              class="group-name-input"
+              type="text"
+              value="${escapeHtmlAttribute(group.label)}"
+              data-rename-group-id="${group.id}"
+              aria-label="Название группы"
+            />
             <div class="group-title-actions">
               <span class="group-count">${group.items.length}</span>
               <button class="card-copy-btn" type="button" data-copy-group-id="${group.id}">
@@ -49,7 +96,10 @@ function renderGroupCards(groups: WordGroup[]): string {
               </button>
             </div>
           </h3>
-          <ul class="group-list">${items}</ul>
+          <ul class="group-list" data-group-list-id="${group.id}">
+            ${rows.join('')}
+            ${group.items.length === 0 ? '<li class="empty-group-note">Пустой список — перетащите слово сюда</li>' : ''}
+          </ul>
         </article>
       `;
     })
@@ -142,7 +192,12 @@ export function renderLayout(root: HTMLElement): UIRefs {
         <section class="panel panel-right">
           <div class="results-top">
             <h2 class="results-title">Grouped words</h2>
-            <span class="field-hint">semantic blocks</span>
+            <div class="results-actions">
+              <button id="create-empty-group-button" type="button" class="btn btn-secondary btn-create-empty">
+                Создать пустой список
+              </button>
+              <span class="field-hint">semantic blocks</span>
+            </div>
           </div>
           <div id="result-grid" class="results-grid"></div>
         </section>
@@ -158,6 +213,7 @@ export function renderLayout(root: HTMLElement): UIRefs {
   const progressText = root.querySelector<HTMLElement>('#progress-text');
   const errorBox = root.querySelector<HTMLElement>('#error-box');
   const resultGrid = root.querySelector<HTMLElement>('#result-grid');
+  const createEmptyGroupButton = root.querySelector<HTMLButtonElement>('#create-empty-group-button');
   const copyButton = root.querySelector<HTMLButtonElement>('#copy-button');
   const downloadMdButton = root.querySelector<HTMLButtonElement>('#download-md-button');
   const downloadCsvButton = root.querySelector<HTMLButtonElement>('#download-csv-button');
@@ -172,6 +228,7 @@ export function renderLayout(root: HTMLElement): UIRefs {
     || !progressText
     || !errorBox
     || !resultGrid
+    || !createEmptyGroupButton
     || !copyButton
     || !downloadMdButton
     || !downloadCsvButton
@@ -189,6 +246,7 @@ export function renderLayout(root: HTMLElement): UIRefs {
     progressText,
     errorBox,
     resultGrid,
+    createEmptyGroupButton,
     copyButton,
     downloadMdButton,
     downloadCsvButton,
@@ -210,6 +268,7 @@ export function renderState(ui: UIRefs, state: AppState): void {
   ui.downloadMdButton.disabled = !hasResults || state.isRunning;
   ui.downloadCsvButton.disabled = !hasResults || state.isRunning;
   ui.downloadTxtButton.disabled = !hasResults || state.isRunning;
+  ui.createEmptyGroupButton.disabled = state.isRunning;
 
   if (state.error) {
     ui.errorBox.textContent = state.error;
