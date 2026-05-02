@@ -219,7 +219,10 @@ export function renderState(ui: UIRefs, state: AppState): void {
     ui.errorBox.classList.add('is-hidden');
   }
 
-  ui.resultGrid.innerHTML = state.isRunning
+  const nextGridMarkup = state.isRunning
     ? renderLoadingSkeleton()
     : renderGroupCards(state.groups);
+  if (ui.resultGrid.innerHTML !== nextGridMarkup) {
+    ui.resultGrid.innerHTML = nextGridMarkup;
+  }
 }
