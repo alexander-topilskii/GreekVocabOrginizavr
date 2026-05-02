@@ -1,33 +1,139 @@
-//TIP With Search Everywhere, you can find any action, file, or symbol in your project. Press <shortcut actionId="Shift"/> <shortcut actionId="Shift"/>, type in <b>terminal</b>, and press <shortcut actionId="EditorEnter"/>. Then run <shortcut raw="npm run dev"/> in the terminal and click the link in its output to open the app in the browser.
-export function setupCounter(element: HTMLElement) {
-  //TIP Try <shortcut actionId="GotoDeclaration"/> on <shortcut raw="counter"/> to see its usages. You can also use this shortcut to jump to a declaration – try it on <shortcut raw="counter"/> on line 13.
-  let counter = 0;
+import './styles.css';
 
-  const adjustCounterValue = (value: number)  => {
-    if (value >= 100) return value - 100;
-    if (value <= -100) return value + 100;
-    return value;
-  };
+import { downloadTextFile, toCsv, toMarkdown, toPlainText } from './lib/export';
+import { parseInput } from './lib/parser';
+import { createState } from './lib/state';
+import type { WorkerOutgoingMessage } from './lib/types';
+import { bindUIEvents } from './ui/events';
+import { renderLayout, renderState } from './ui/render';
 
-  const setCounter = (value: number) => {
-    counter = adjustCounterValue(value);
-    //TIP WebStorm has lots of inspections to help you catch issues in your project. It also has quick fixes to help you resolve them. Press <shortcut actionId="ShowIntentionActions"/> on <shortcut raw="text"/> and choose <b>Inline variable</b> to clean up the redundant code.
-    const text = `${counter}`;
-    element.innerHTML = text;
-  };
+const app = document.querySelector<HTMLElement>('#app');
 
-  document.getElementById('increaseByOne')?.addEventListener('click', () => setCounter(counter + 1));
-  document.getElementById('decreaseByOne')?.addEventListener('click', () => setCounter(counter - 1));
-  document.getElementById('increaseByTwo')?.addEventListener('click', () => setCounter(counter + 2));
-
-  //TIP In the app running in the browser, you’ll find that clicking <b>-2</b> doesn't work. To fix that, rewrite it using the code from lines 19 - 21 as examples of the logic.
-  document.getElementById('decreaseByTwo')
-
-  //TIP Let’s see how to review and commit your changes. Press <shortcut actionId="GotoAction"/> and look for <b>commit</b>. Try checking the diff for a file – double-click main.ts to do that.
-  setCounter(0);
+if (!app) {
+  throw new Error('Cannot find app root.');
 }
 
-//TIP To find text strings in your project, you can use the <shortcut actionId="FindInPath"/> shortcut. Press it and type in <b>counter</b> – you’ll get all matches in one place.
-setupCounter(document.getElementById('counter-value') as HTMLElement);
+const state = createState();
+const ui = renderLayout(app);
+const worker = new Worker(new URL('./worker/worker.ts', import.meta.url), { type: 'module' });
 
-//TIP There's much more in WebStorm to help you be more productive. Press <shortcut actionId="Shift"/> <shortcut actionId="Shift"/> and search for <b>Learn WebStorm</b> to open our learning hub with more things for you to try.
+function updateState(): void {
+  renderState(ui, state);
+}
+
+function setError(message: string | null): void {
+  state.error = message;
+}
+
+function setRunning(value: boolean): void {
+  state.isRunning = value;
+}
+
+function setProgress(progress: number, status: string): void {
+  state.progress = progress;
+  state.progressStatus = status;
+}
+
+async function copyResults(): Promise<void> {
+  if (state.groups.length === 0) {
+    return;
+  }
+
+  const text = toPlainText(state.groups);
+  await navigator.clipboard.writeText(text);
+  state.progressStatus = 'Copied grouped text to clipboard.';
+  updateState();
+}
+
+function startProcessing(): void {
+  const entries = parseInput(ui.textarea.value);
+  if (entries.length === 0) {
+    setError('Please paste at least one Greek word.');
+    updateState();
+    return;
+  }
+
+  if (entries.length < 5) {
+    setError('Please provide at least 5 words for meaningful grouping.');
+    updateState();
+    return;
+  }
+
+  setError(null);
+  setRunning(true);
+  setProgress(1, `Starting processing (${entries.length} words)...`);
+  updateState();
+
+  worker.postMessage({
+    type: 'process',
+    payload: {
+      entries,
+      targetGroupSize: state.groupSize,
+    },
+  });
+}
+
+worker.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
+  const { data } = event;
+
+  if (data.type === 'model-progress') {
+    const suffix = data.payload.file ? ` (${data.payload.file})` : '';
+    setProgress(
+      data.payload.progress,
+      `${data.payload.status}${suffix}`,
+    );
+  }
+
+  if (data.type === 'status') {
+    state.progressStatus = data.payload.message;
+  }
+
+  if (data.type === 'result') {
+    state.groups = data.payload.groups;
+    setRunning(false);
+    setProgress(100, `Done. ${state.groups.length} groups ready.`);
+  }
+
+  if (data.type === 'error') {
+    setRunning(false);
+    setProgress(0, 'Failed.');
+    setError(data.payload.message);
+  }
+
+  updateState();
+};
+
+bindUIEvents(ui, {
+  onRun: startProcessing,
+  onGroupSizeChange: (value) => {
+    state.groupSize = value;
+    updateState();
+  },
+  onCopy: () => {
+    copyResults().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Copy failed.';
+      setError(message);
+      updateState();
+    });
+  },
+  onDownloadMd: () => {
+    if (state.groups.length === 0) {
+      return;
+    }
+    downloadTextFile('greek-groups.md', toMarkdown(state.groups));
+  },
+  onDownloadCsv: () => {
+    if (state.groups.length === 0) {
+      return;
+    }
+    downloadTextFile('greek-groups.csv', toCsv(state.groups));
+  },
+  onDownloadTxt: () => {
+    if (state.groups.length === 0) {
+      return;
+    }
+    downloadTextFile('greek-groups.txt', toPlainText(state.groups));
+  },
+});
+
+updateState();

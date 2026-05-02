@@ -9,8 +9,16 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.13",
     "prettier": "^3.3.1",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^5.2.2",
     "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "ml-kmeans": "^7.0.0"
   }
 }
