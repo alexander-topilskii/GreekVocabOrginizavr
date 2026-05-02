@@ -1,6 +1,6 @@
 # Greek Vocab Organizavr
 
-
+![img.png](img.png)
 
 Semantic Greek Word Organizavr (SPA) for clustering large vocabulary lists directly in the browser.
 
