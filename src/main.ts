@@ -2,7 +2,14 @@ import './styles.css';
 
 import { downloadTextFile, toCsv, toMarkdown, toPlainText } from './lib/export';
 import { parseInput } from './lib/parser';
-import { createEmptyGroup, createState, moveItem, removeItemFromGroup, renameGroup } from './lib/state';
+import {
+  createEmptyGroup,
+  createState,
+  moveItem,
+  removeGroup,
+  removeItemFromGroup,
+  renameGroup,
+} from './lib/state';
 import type { WorkerOutgoingMessage } from './lib/types';
 import { bindUIEvents } from './ui/events';
 import { renderLayout, renderState } from './ui/render';
@@ -182,6 +189,17 @@ ui.createEmptyGroupButton.addEventListener('click', () => {
 
 ui.resultGrid.addEventListener('click', (event) => {
   const target = event.target as HTMLElement | null;
+  const removeGroupButton = target?.closest<HTMLButtonElement>('[data-remove-whole-group-id]');
+  if (removeGroupButton) {
+    const groupId = removeGroupButton.dataset.removeWholeGroupId;
+    if (groupId) {
+      state.groups = removeGroup(state.groups, groupId);
+      setError(null);
+      updateState();
+    }
+    return;
+  }
+
   const removeButton = target?.closest<HTMLButtonElement>('[data-remove-group-id][data-remove-item-id]');
   if (removeButton) {
     const groupId = removeButton.dataset.removeGroupId;

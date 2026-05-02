@@ -49,6 +49,15 @@ export function removeItemFromGroup(groups: WordGroup[], groupId: string, itemId
   return nextGroups;
 }
 
+export function removeGroup(groups: WordGroup[], groupId: string): WordGroup[] {
+  const groupExists = groups.some((group) => group.id === groupId);
+  if (!groupExists) {
+    return groups;
+  }
+
+  return groups.filter((group) => group.id !== groupId);
+}
+
 export function moveItem(
   groups: WordGroup[],
   sourceGroupId: string,

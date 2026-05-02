@@ -345,6 +345,23 @@ body {
   color: #3730a3;
 }
 
+.card-delete-group-btn {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.card-delete-group-btn:hover {
+  border-color: #fda4af;
+  background: #ffe4e6;
+}
+
 .group-list {
   margin: 0;
   padding: 0;

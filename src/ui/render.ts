@@ -91,6 +91,9 @@ function renderGroupCards(groups: WordGroup[]): string {
             />
             <div class="group-title-actions">
               <span class="group-count">${group.items.length}</span>
+              <button class="card-delete-group-btn" type="button" data-remove-whole-group-id="${group.id}">
+                Удалить список
+              </button>
               <button class="card-copy-btn" type="button" data-copy-group-id="${group.id}">
                 Copy
               </button>
