@@ -101,6 +101,23 @@ function parseDropTarget(target: HTMLElement | null): { groupId: string; index: 
   return { groupId, index };
 }
 
+function parseItemDropTarget(target: HTMLElement | null): { groupId: string; index: number } | null {
+  const slotTarget = parseDropTarget(target);
+  if (slotTarget) {
+    return slotTarget;
+  }
+
+  const list = target?.closest<HTMLElement>('[data-group-list-id]');
+  const groupId = list?.dataset.groupListId;
+  if (!groupId) {
+    return null;
+  }
+
+  const group = state.groups.find((entry) => entry.id === groupId);
+  const index = group?.items.length ?? 0;
+  return { groupId, index };
+}
+
 function parseGroupDropTarget(target: HTMLElement | null): { groupId: string } | null {
   const groupCard = target?.closest<HTMLElement>('[data-group-card-id]');
   const groupId = groupCard?.dataset.groupCardId;
@@ -109,6 +126,36 @@ function parseGroupDropTarget(target: HTMLElement | null): { groupId: string } |
   }
 
   return { groupId };
+}
+
+function getActiveDragPayloadFromDataTransfer(event: DragEvent): ActiveDragPayload | null {
+  const raw = event.dataTransfer?.getData('text/plain') ?? '';
+  if (!raw) {
+    return null;
+  }
+
+  const parts = raw.split(':');
+  if (parts[0] === 'item' && parts.length === 3) {
+    const itemId = Number(parts[2]);
+    if (!parts[1] || !Number.isInteger(itemId)) {
+      return null;
+    }
+
+    return {
+      kind: 'item',
+      sourceGroupId: parts[1],
+      itemId,
+    };
+  }
+
+  if (parts[0] === 'group' && parts.length === 2 && parts[1]) {
+    return {
+      kind: 'group',
+      groupId: parts[1],
+    };
+  }
+
+  return null;
 }
 
 function startProcessing(): void {
@@ -303,7 +350,7 @@ ui.resultGrid.addEventListener('dragstart', (event) => {
     groupHandle.closest<HTMLElement>('[data-group-card-id]')?.classList.add('group-card-dragging');
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', groupId);
+      event.dataTransfer.setData('text/plain', `group:${groupId}`);
     }
     return;
   }
@@ -324,19 +371,20 @@ ui.resultGrid.addEventListener('dragstart', (event) => {
   dragItem.classList.add('group-item-dragging');
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', `${sourceGroupId}:${itemId}`);
+    event.dataTransfer.setData('text/plain', `item:${sourceGroupId}:${itemId}`);
   }
 });
 
 ui.resultGrid.addEventListener('dragover', (event) => {
-  if (!activeDragPayload) {
+  const dragPayload = activeDragPayload ?? getActiveDragPayloadFromDataTransfer(event);
+  if (!dragPayload) {
     return;
   }
 
   const target = event.target as HTMLElement | null;
-  if (activeDragPayload.kind === 'group') {
+  if (dragPayload.kind === 'group') {
     const dropTarget = parseGroupDropTarget(target);
-    if (!dropTarget || dropTarget.groupId === activeDragPayload.groupId) {
+    if (!dropTarget || dropTarget.groupId === dragPayload.groupId) {
       return;
     }
 
@@ -349,14 +397,16 @@ ui.resultGrid.addEventListener('dragover', (event) => {
     return;
   }
 
-  const itemDropTarget = parseDropTarget(target);
+  const itemDropTarget = parseItemDropTarget(target);
   if (!itemDropTarget) {
     return;
   }
 
   event.preventDefault();
   clearDropSlotHighlight();
-  const slot = target?.closest<HTMLElement>('[data-drop-group-id][data-drop-index]');
+  const slot = ui.resultGrid.querySelector<HTMLElement>(
+    `[data-drop-group-id="${itemDropTarget.groupId}"][data-drop-index="${itemDropTarget.index}"]`,
+  );
   slot?.classList.add('drop-slot-active');
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'move';
@@ -364,7 +414,8 @@ ui.resultGrid.addEventListener('dragover', (event) => {
 });
 
 ui.resultGrid.addEventListener('drop', (event) => {
-  if (!activeDragPayload) {
+  const dragPayload = activeDragPayload ?? getActiveDragPayloadFromDataTransfer(event);
+  if (!dragPayload) {
     return;
   }
 
@@ -373,7 +424,7 @@ ui.resultGrid.addEventListener('drop', (event) => {
   clearDropSlotHighlight();
   clearGroupDropHighlight();
 
-  if (activeDragPayload.kind === 'group') {
+  if (dragPayload.kind === 'group') {
     const groupDropTarget = parseGroupDropTarget(target);
     if (!groupDropTarget) {
       return;
@@ -381,7 +432,7 @@ ui.resultGrid.addEventListener('drop', (event) => {
 
     state.groups = moveGroup(
       state.groups,
-      activeDragPayload.groupId,
+      dragPayload.groupId,
       groupDropTarget.groupId,
     );
     setError(null);
@@ -389,15 +440,15 @@ ui.resultGrid.addEventListener('drop', (event) => {
     return;
   }
 
-  const dropTarget = parseDropTarget(target);
+  const dropTarget = parseItemDropTarget(target);
   if (!dropTarget) {
     return;
   }
 
   state.groups = moveItem(
     state.groups,
-    activeDragPayload.sourceGroupId,
-    activeDragPayload.itemId,
+    dragPayload.sourceGroupId,
+    dragPayload.itemId,
     dropTarget.groupId,
     dropTarget.index,
   );

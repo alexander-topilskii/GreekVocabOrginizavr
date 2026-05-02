@@ -50,7 +50,7 @@ function renderGroupCards(groups: WordGroup[]): string {
   }
 
   return groups
-    .map((group, index) => {
+    .map((group) => {
       const rows: string[] = [renderDropSlot(group.id, 0)];
       group.items.forEach((item, itemIndex) => {
         const textMarkup = item.translation.length > 0
@@ -80,7 +80,7 @@ function renderGroupCards(groups: WordGroup[]): string {
       });
 
       return `
-        <article class="group-card card-enter" data-group-card-id="${group.id}" style="animation-delay: ${Math.min(index * 45, 250)}ms">
+        <article class="group-card" data-group-card-id="${group.id}">
           <h3 class="group-title">
             <button
               class="group-drag-handle"
@@ -120,8 +120,8 @@ function renderGroupCards(groups: WordGroup[]): string {
 
 function renderLoadingSkeleton(): string {
   return Array.from({ length: 6 })
-    .map((_, index) => `
-      <article class="group-card card-skeleton card-enter" style="animation-delay: ${Math.min(index * 40, 220)}ms">
+    .map(() => `
+      <article class="group-card card-skeleton">
         <div class="skeleton-line skeleton-title"></div>
         <div class="skeleton-line"></div>
         <div class="skeleton-line"></div>
